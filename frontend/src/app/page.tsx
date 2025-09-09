@@ -3,13 +3,30 @@
 import { useState } from 'react'
 import UploadComponent from '@/components/UploadComponent'
 import ChatComponent from '@/components/ChatComponent'
+import DocumentManagement from '@/components/DocumentManagement'
+
+type TabType = 'upload' | 'chat' | 'manage'
+
+interface UploadResult {
+  filename: string
+  fileId: string
+  success: boolean
+  chunksProcessed?: number
+  chunksEmbedded?: number
+}
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'upload' | 'chat'>('upload')
+  const [activeTab, setActiveTab] = useState<TabType>('upload')
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+  const [totalChunks, setTotalChunks] = useState(0)
 
-  const handleUploadSuccess = (filename: string) => {
+  const handleUploadSuccess = (filename: string, result: UploadResult) => {
     setUploadedFiles(prev => [...prev, filename])
+    
+    if (result.chunksEmbedded) {
+      setTotalChunks(prev => prev + result.chunksEmbedded!)
+    }
+    
     // Auto-switch to chat after successful upload
     setTimeout(() => setActiveTab('chat'), 1000)
   }
@@ -21,6 +38,16 @@ export default function Home() {
   const handleChatError = (error: string) => {
     console.error('Chat error:', error)
   }
+
+  const handleManagementError = (error: string) => {
+    console.error('Management error:', error)
+  }
+
+  const tabs = [
+    { id: 'upload', label: 'Upload Documents', icon: '📄' },
+    { id: 'chat', label: 'Chat with Documents', icon: '💬' },
+    { id: 'manage', label: 'Manage Documents', icon: '⚙️' }
+  ] as const
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -38,10 +65,19 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               {uploadedFiles.length > 0 && (
-                <span className="text-sm text-gray-600">
-                  {uploadedFiles.length} document{uploadedFiles.length > 1 ? 's' : ''} uploaded
-                </span>
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">{uploadedFiles.length}</span> document{uploadedFiles.length > 1 ? 's' : ''} uploaded
+                  {totalChunks > 0 && (
+                    <span className="ml-2 text-gray-500">
+                      ({totalChunks.toLocaleString()} chunks)
+                    </span>
+                  )}
+                </div>
               )}
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-gray-500">Connected</span>
+              </div>
             </div>
           </div>
         </div>
@@ -51,26 +87,20 @@ export default function Home() {
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('upload')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'upload'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Upload Documents
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'chat'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Chat with Documents
-            </button>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center space-x-2 ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </nav>
@@ -85,6 +115,7 @@ export default function Home() {
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Upload your documents to start chatting with them. Supported formats include PDF, TXT, DOC, and DOCX files.
+                {process.env.NEXT_PUBLIC_ENABLE_MULTI_UPLOAD === 'true' && ' Multiple file upload is enabled.'}
               </p>
             </div>
             <UploadComponent
@@ -102,6 +133,7 @@ export default function Home() {
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Ask questions about your uploaded documents and get instant answers powered by AI.
+                Your conversation history is preserved within each session.
               </p>
             </div>
             {uploadedFiles.length === 0 ? (
@@ -137,6 +169,20 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {activeTab === 'manage' && (
+          <div>
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Document Management
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                View statistics about your uploaded documents and manage your document collection.
+              </p>
+            </div>
+            <DocumentManagement onError={handleManagementError} />
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -144,6 +190,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-500">
             <p>&copy; 2024 DocAI. Powered by AI for intelligent document processing.</p>
+            <div className="mt-2 flex justify-center space-x-4 text-sm">
+              <span>
+                LLM Provider: {process.env.NEXT_PUBLIC_LLM_PROVIDER || 'Default'}
+              </span>
+              <span>•</span>
+              <span>
+                Environment: {process.env.NODE_ENV || 'development'}
+              </span>
+            </div>
           </div>
         </div>
       </footer>
