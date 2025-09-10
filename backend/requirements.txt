@@ -16,6 +16,9 @@ sentence-transformers==2.2.2
 transformers==4.35.2
 torch==2.1.1
 
+# OpenAI API support
+openai==1.3.7
+
 # Utilities
 python-dotenv==1.0.0
 numpy==1.24.3
@@ -27,3 +30,16 @@ aiofiles==23.2.1
 
 # Logging and monitoring
 structlog==23.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# Security
+pyjwt==2.8.0
+passlib==1.7.4
+bcrypt==4.1.2
+
+# File handling
+python-magic==0.4.27
